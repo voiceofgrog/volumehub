@@ -621,12 +621,21 @@ function setupEvents() {
       allMuted = true;
       muteBtn.setAttribute('aria-label', 'Unmute all tabs');
       muteBtn.classList.add('active');
+      // Sync individual tab buttons to show muted state
+      const audibleTabs = await chrome.tabs.query({ audible: true }).catch(() => []);
+      for (const tab of audibleTabs) tabMuteState.set(tab.id, true);
+      _audioTabsFingerprint = '';
+      renderAudioTabs();
     } else {
       await msg('unmute-all');
       showMuteFeedback('Unmuted all');
       allMuted = false;
       muteBtn.setAttribute('aria-label', 'Mute all audible tabs');
       muteBtn.classList.remove('active');
+      // Clear all individual mute states so every button resets to unmuted
+      tabMuteState.clear();
+      _audioTabsFingerprint = '';
+      renderAudioTabs();
     }
   });
 

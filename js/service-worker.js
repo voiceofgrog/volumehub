@@ -215,11 +215,15 @@ async function dispatch(msg) {
       const nativeMute = audibleTabs.filter(t => !capturedIds.has(t.id));
       await Promise.all(nativeMute.map(t => chrome.tabs.update(t.id, { muted: true })));
 
+      // Track all muted tabs so get-muted-tabs reflects them correctly
+      for (const tabId of capturedIds) mutedTabs.add(tabId);
+      for (const t of nativeMute) mutedTabs.add(t.id);
+
       return { success: true, count: capturedIds.size + nativeMute.length };
     }
 
     case 'unmute-all': {
-      const [capturedRes, mutedTabs] = await Promise.all([
+      const [capturedRes, nativeMutedTabs] = await Promise.all([
         toOffscreen({ action: 'get-captured-tabs' }).catch(() => ({ tabIds: [] })),
         chrome.tabs.query({ muted: true }),
       ]);
@@ -227,8 +231,8 @@ async function dispatch(msg) {
 
       // Restore saved (or default) volume on captured tabs
       const store = await chrome.storage.local.get(['domains-settings', 'global-settings']);
-      const domainMap   = store['domains-settings'] || {};
-      const defaultVol  = store['global-settings']?.defaultVolume ?? 100;
+      const domainMap  = store['domains-settings'] || {};
+      const defaultVol = store['global-settings']?.defaultVolume ?? 100;
 
       await Promise.all([...capturedIds].map(async tabId => {
         try {
@@ -240,8 +244,11 @@ async function dispatch(msg) {
       }));
 
       // Native unmute on the rest
-      const nativeUnmute = mutedTabs.filter(t => !capturedIds.has(t.id));
+      const nativeUnmute = nativeMutedTabs.filter(t => !capturedIds.has(t.id));
       await Promise.all(nativeUnmute.map(t => chrome.tabs.update(t.id, { muted: false })));
+
+      // Clear all tracked muted tabs
+      mutedTabs.clear();
 
       return { success: true };
     }
