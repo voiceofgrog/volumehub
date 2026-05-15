@@ -706,7 +706,8 @@ function setupEvents() {
 
   // ── Keyboard shortcuts (when focus is not inside an input/select)
   document.addEventListener('keydown', e => {
-    if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
+    if (['SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
+    if (e.target.tagName === 'INPUT' && e.target.type !== 'range') return;
     const slider = document.getElementById('volume-slider');
     const step   = e.shiftKey ? 10 : 1;
     switch (e.key) {

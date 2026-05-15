@@ -362,6 +362,11 @@ input[type="range"] {
   outline: none;
   cursor: pointer;
 }
+input[type="range"]:focus-visible {
+  outline: 3px solid var(--md-primary);
+  outline-offset: 4px;
+  border-radius: var(--shape-xs);
+}
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 20px;
