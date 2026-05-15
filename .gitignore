@@ -1,0 +1,12 @@
+# Chrome extension build artifacts
+*.crx
+*.pem
+*.zip
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/

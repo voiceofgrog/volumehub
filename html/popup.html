@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>VolumeHub</title>
+  <link rel="stylesheet" href="../css/popup.css">
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <div class="logo">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M3 9v6h4l5 5V4L7 9H3z" fill="currentColor"/>
+        <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" fill="currentColor" opacity="0.6"/>
+        <path d="M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" fill="currentColor" opacity="0.4"/>
+      </svg>
+      <span>VolumeHub</span>
+    </div>
+    <div class="header-actions">
+      <span id="mute-feedback" class="mute-feedback" aria-live="polite"></span>
+      <button id="mute-all-btn" class="icon-btn" aria-label="Mute all audible tabs" title="Mute all audible tabs">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63z" fill="currentColor"/>
+        <path d="M19 12c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z" fill="currentColor"/>
+      </svg>
+      </button>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="VolumeHub sections">
+    <button id="tab-btn-volume"   class="tab-btn active" data-tab="volume"
+            role="tab" aria-selected="true"  aria-controls="tab-volume">Volume</button>
+    <button id="tab-btn-eq"       class="tab-btn"        data-tab="eq"
+            role="tab" aria-selected="false" aria-controls="tab-eq">EQ</button>
+    <button id="tab-btn-domains"  class="tab-btn"        data-tab="domains"
+            role="tab" aria-selected="false" aria-controls="tab-domains">Domains</button>
+    <button id="tab-btn-settings" class="tab-btn"        data-tab="settings"
+            role="tab" aria-selected="false" aria-controls="tab-settings">Settings</button>
+  </nav>
+
+  <!-- ── Volume tab ───────────────────────────────────────────────────────── -->
+  <div id="tab-volume" class="tab-content active"
+       role="tabpanel" aria-labelledby="tab-btn-volume" tabindex="0">
+
+    <div class="domain-bar" aria-label="Current site">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" opacity="0.5" aria-hidden="true">
+        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+      </svg>
+      <span id="current-domain" class="domain-name"></span>
+      <span id="domain-status"  class="domain-badge" aria-live="polite"></span>
+    </div>
+
+    <div class="volume-section">
+      <div class="volume-vis-wrap">
+        <canvas id="analyser-canvas" width="312" height="72"
+                role="img" aria-label="Audio frequency visualizer"></canvas>
+        <span id="nice-banner" class="nice-banner" aria-live="polite">NICE</span>
+        <div class="volume-display" aria-live="polite" aria-atomic="true">
+          <span id="volume-value">100</span><span class="volume-unit" aria-hidden="true">%</span>
+        </div>
+      </div>
+      <div class="slider-wrap">
+        <input type="range" id="volume-slider"
+               min="0" max="600" value="100" step="1"
+               aria-label="Volume level, 0 to 600 percent"
+               aria-valuetext="100 percent">
+        <div class="slider-track-labels" aria-hidden="true">
+          <span>0%</span><span>100%</span><span>600%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="quick-actions">
+      <button class="action-btn" id="reset-btn" aria-label="Reset volume to 100%">Reset to 100%</button>
+      <button class="action-btn secondary" id="clear-domain-btn" aria-label="Clear saved volume for this site">Clear saved</button>
+    </div>
+
+    <section id="audio-tabs-section" class="audio-tabs-section"
+             aria-label="Tabs playing audio right now" style="display:none">
+      <div class="audio-tabs-header">Tabs playing audio right now</div>
+      <div id="audio-tabs-list" class="audio-tabs-list" role="list"></div>
+    </section>
+  </div>
+
+  <!-- ── EQ tab ────────────────────────────────────────────────────────────── -->
+  <div id="tab-eq" class="tab-content"
+       role="tabpanel" aria-labelledby="tab-btn-eq" tabindex="-1">
+
+    <div class="eq-presets" role="group" aria-label="EQ presets">
+      <button class="eq-preset-btn active" data-preset="flat"  aria-pressed="true">Flat</button>
+      <button class="eq-preset-btn"        data-preset="bass"  aria-pressed="false">Bass Boost</button>
+      <button class="eq-preset-btn"        data-preset="vocal" aria-pressed="false">Vocal</button>
+      <button class="eq-preset-btn"        data-preset="night" aria-pressed="false">Night Mode</button>
+    </div>
+
+    <div class="eq-bands" role="group" aria-label="Equalizer bands">
+
+      <div class="eq-band">
+        <output class="eq-band-value" id="eq-bass-val">0 dB</output>
+        <div class="eq-slider-wrap">
+          <span class="eq-scale-top" aria-hidden="true">+12</span>
+          <div class="eq-custom-track" id="eq-bass"
+               role="slider" tabindex="0"
+               aria-label="Bass equalizer"
+               aria-valuemin="-12" aria-valuemax="12"
+               aria-valuenow="0" aria-valuetext="0 decibels">
+            <div class="eq-fill"></div>
+            <div class="eq-thumb"></div>
+          </div>
+          <span class="eq-scale-bot" aria-hidden="true">−12</span>
+        </div>
+        <span class="eq-band-label" aria-hidden="true">Bass</span>
+      </div>
+
+      <div class="eq-band">
+        <output class="eq-band-value" id="eq-mid-val">0 dB</output>
+        <div class="eq-slider-wrap">
+          <span class="eq-scale-top" aria-hidden="true">+12</span>
+          <div class="eq-custom-track" id="eq-mid"
+               role="slider" tabindex="0"
+               aria-label="Mid equalizer"
+               aria-valuemin="-12" aria-valuemax="12"
+               aria-valuenow="0" aria-valuetext="0 decibels">
+            <div class="eq-fill"></div>
+            <div class="eq-thumb"></div>
+          </div>
+          <span class="eq-scale-bot" aria-hidden="true">−12</span>
+        </div>
+        <span class="eq-band-label" aria-hidden="true">Mid</span>
+      </div>
+
+      <div class="eq-band">
+        <output class="eq-band-value" id="eq-treble-val">0 dB</output>
+        <div class="eq-slider-wrap">
+          <span class="eq-scale-top" aria-hidden="true">+12</span>
+          <div class="eq-custom-track" id="eq-treble"
+               role="slider" tabindex="0"
+               aria-label="Treble equalizer"
+               aria-valuemin="-12" aria-valuemax="12"
+               aria-valuenow="0" aria-valuetext="0 decibels">
+            <div class="eq-fill"></div>
+            <div class="eq-thumb"></div>
+          </div>
+          <span class="eq-scale-bot" aria-hidden="true">−12</span>
+        </div>
+        <span class="eq-band-label" aria-hidden="true">Treble</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Domains tab ───────────────────────────────────────────────────────── -->
+  <div id="tab-domains" class="tab-content"
+       role="tabpanel" aria-labelledby="tab-btn-domains" tabindex="-1">
+    <div class="domains-toolbar">
+      <span class="domains-title">Saved Volumes</span>
+      <div class="domains-actions">
+        <button class="action-btn small" id="export-btn" aria-label="Export domain settings as JSON">Export</button>
+        <button class="action-btn small secondary" id="import-btn" aria-label="Import domain settings from JSON file">Import</button>
+        <input type="file" id="import-file" accept=".json" style="display:none" aria-label="Choose JSON file to import">
+      </div>
+    </div>
+    <div id="domains-list" class="domains-list" role="list" aria-label="Saved domain volumes">
+      <div class="empty-state">No saved domains yet.<br>Adjust volume on any site to save it.</div>
+    </div>
+  </div>
+
+  <!-- ── Settings tab ──────────────────────────────────────────────────────── -->
+  <div id="tab-settings" class="tab-content"
+       role="tabpanel" aria-labelledby="tab-btn-settings" tabindex="-1">
+    <div class="settings-list">
+
+      <label class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">Dark Mode</span>
+        </div>
+        <input type="checkbox" id="dark-mode-toggle" class="toggle" aria-label="Toggle dark mode">
+      </label>
+
+      <label class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">Auto-apply saved volumes</span>
+          <span class="setting-desc">Apply stored volume when opening popup</span>
+        </div>
+        <input type="checkbox" id="auto-apply-toggle" class="toggle"
+               aria-label="Auto-apply saved volumes on popup open" checked>
+      </label>
+
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">Default volume</span>
+          <span class="setting-desc">For sites with no saved setting</span>
+        </div>
+        <div class="number-input-wrap">
+          <input type="number" id="default-volume" min="0" max="600" value="100"
+                 aria-label="Default volume percentage">
+          <span aria-hidden="true">%</span>
+        </div>
+      </div>
+
+      <div class="settings-divider" aria-hidden="true"></div>
+
+      <div class="setting-row no-hover">
+        <div class="setting-info">
+          <span class="setting-label">Volume shortcuts</span>
+          <span class="setting-desc">Scroll wheel or ↑ ↓ keys · Hold Shift for ×10 steps · Keys 1–6 jump to 100–600%</span>
+        </div>
+      </div>
+
+      <div class="setting-row no-hover">
+        <div class="setting-info">
+          <span class="setting-label">EQ shortcuts</span>
+          <span class="setting-desc">Scroll anywhere in a band column · Hold Shift for larger steps · Click and drag for precision</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+<script src="../js/popup.js"></script>
+</body>
+</html>
