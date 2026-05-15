@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — VolumeHub</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #6c63ff;
+      --surface: #fffbff;
+      --surface-low: #f5eeff;
+      --surface-container: #ede9f8;
+      --on-surface: #1c1b1f;
+      --on-surface-variant: #49454f;
+      --outline-variant: #cac4d0;
+      --shape-sm: 8px;
+      --shape-md: 12px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--surface);
+      color: var(--on-surface);
+      line-height: 1.7;
+      padding: 0 16px 64px;
+    }
+
+    header {
+      background: var(--surface-container);
+      border-bottom: 1px solid var(--outline-variant);
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 0 -16px 40px;
+    }
+
+    .logo-mark {
+      width: 36px;
+      height: 36px;
+      background: var(--primary);
+      border-radius: var(--shape-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .logo-mark svg { color: #fff; }
+
+    .logo-text {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--on-surface);
+    }
+
+    .logo-text span {
+      display: block;
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--on-surface-variant);
+    }
+
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--on-surface);
+    }
+
+    .meta {
+      font-size: 13px;
+      color: var(--on-surface-variant);
+      margin-bottom: 36px;
+    }
+
+    h2 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--on-surface);
+      margin: 32px 0 10px;
+    }
+
+    p { margin-bottom: 12px; color: var(--on-surface-variant); }
+
+    ul {
+      margin: 8px 0 12px 20px;
+      color: var(--on-surface-variant);
+    }
+
+    ul li { margin-bottom: 6px; }
+
+    .callout {
+      background: var(--surface-low);
+      border: 1px solid var(--outline-variant);
+      border-left: 4px solid var(--primary);
+      border-radius: var(--shape-sm);
+      padding: 14px 16px;
+      margin: 20px 0;
+      color: var(--on-surface);
+      font-size: 14px;
+    }
+
+    .callout strong { color: var(--primary); }
+
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    footer {
+      margin-top: 48px;
+      padding-top: 20px;
+      border-top: 1px solid var(--outline-variant);
+      font-size: 12px;
+      color: var(--on-surface-variant);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-mark">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M3 9v6h4l5 5V4L7 9H3z" fill="currentColor"/>
+      <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" fill="currentColor" opacity="0.7"/>
+      <path d="M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" fill="currentColor" opacity="0.4"/>
+    </svg>
+  </div>
+  <div class="logo-text">
+    VolumeHub
+    <span>Chrome Extension</span>
+  </div>
+</header>
+
+<main>
+  <h1>Privacy Policy</h1>
+  <p class="meta">Effective date: May 15, 2026 &nbsp;·&nbsp; Last updated: May 15, 2026</p>
+
+  <div class="callout">
+    <strong>Short version:</strong> VolumeHub stores your audio preferences locally on your device only. No personal data is collected, transmitted, or shared — ever.
+  </div>
+
+  <h2>What VolumeHub Does</h2>
+  <p>VolumeHub is a Chrome extension that lets you boost and control audio volume for any browser tab, apply a 3-band equalizer, and save per-site volume preferences.</p>
+
+  <h2>Data We Collect</h2>
+  <p>VolumeHub does <strong>not</strong> collect any personal data. The extension does not:</p>
+  <ul>
+    <li>Transmit any data to external servers</li>
+    <li>Use analytics or crash-reporting services</li>
+    <li>Track browsing history or visited URLs beyond what is needed in the moment to read the current tab's domain</li>
+    <li>Store or log any audio content</li>
+    <li>Collect names, email addresses, or any identifying information</li>
+  </ul>
+
+  <h2>Data Stored Locally</h2>
+  <p>VolumeHub saves the following settings to your browser's local extension storage (<code>chrome.storage.local</code>), which never leaves your device:</p>
+  <ul>
+    <li><strong>Per-domain volume levels</strong> — the volume you set for a given website</li>
+    <li><strong>EQ settings</strong> — bass, mid, and treble adjustments</li>
+    <li><strong>App preferences</strong> — dark mode, auto-apply toggle, default volume</li>
+  </ul>
+  <p>This data is stored entirely on your device and is only accessible by the VolumeHub extension itself. It is never uploaded or synced to any external service.</p>
+
+  <h2>Permissions Explained</h2>
+  <p>VolumeHub requests only the permissions it needs to function:</p>
+  <ul>
+    <li><strong>tabs</strong> — to read the current tab's URL so the correct saved volume can be applied</li>
+    <li><strong>tabCapture</strong> — to capture a tab's audio stream for volume boosting and EQ processing</li>
+    <li><strong>storage</strong> — to save your preferences locally</li>
+    <li><strong>offscreen</strong> — to run Web Audio API processing in an offscreen document, as required by Chrome's Manifest V3 architecture</li>
+    <li><strong>alarms</strong> — to keep the background service worker alive while audio processing is active</li>
+    <li><strong>Host permissions (&lt;all_urls&gt;)</strong> — required for tab audio capture to work on any website you visit</li>
+  </ul>
+
+  <h2>Third Parties</h2>
+  <p>VolumeHub does not use any third-party libraries, analytics platforms, advertising networks, or external services. No data of any kind is shared with third parties.</p>
+
+  <h2>Children's Privacy</h2>
+  <p>VolumeHub does not knowingly collect any information from anyone, including children under the age of 13.</p>
+
+  <h2>Changes to This Policy</h2>
+  <p>If this privacy policy is updated in the future, the new version will be published at this URL and the "Last updated" date at the top of this page will be revised.</p>
+
+  <h2>Contact</h2>
+  <p>If you have any questions about this privacy policy, you can reach us at <a href="mailto:support@voiceofgrog.com">support@voiceofgrog.com</a> or open an issue on the <a href="https://github.com/voiceofgrog/volumehub" target="_blank" rel="noopener">GitHub repository</a>.</p>
+
+  <footer>
+    &copy; 2026 VolumeHub &nbsp;·&nbsp;
+    <a href="https://github.com/voiceofgrog/volumehub">GitHub</a>
+  </footer>
+</main>
+
+</body>
+</html>

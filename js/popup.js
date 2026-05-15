@@ -322,6 +322,10 @@ const SVG_MUTED = `<svg width="14" height="14" viewBox="0 0 24 24" fill="current
 // keep our own record.
 const tabMuteState = new Map();
 
+// Fingerprint of the last rendered state — used to skip re-renders when nothing
+// changed, which prevents hover state from blinking on the 2 s poll interval.
+let _audioTabsFingerprint = '';
+
 async function renderAudioTabs() {
   const [tabs, mutedRes] = await Promise.all([
     chrome.tabs.query({ audible: true }).catch(() => []),
@@ -339,13 +343,26 @@ async function renderAudioTabs() {
     if (!tabMuteState.has(id)) tabMuteState.set(id, true);
   });
 
+  // Build a state fingerprint. If it matches the last render, skip DOM rebuild
+  // so hover/focus state on existing rows is never interrupted by the poll timer.
+  const fingerprint = tabs.map(t => {
+    const muted = tabMuteState.has(t.id) ? tabMuteState.get(t.id) : !!t.mutedInfo?.muted;
+    return `${t.id}:${t.title}:${muted}`;
+  }).join('|') || 'empty';
+
   const section = document.getElementById('audio-tabs-section');
   const list    = document.getElementById('audio-tabs-list');
 
   if (!tabs.length) {
-    section.style.display = 'none';
+    if (_audioTabsFingerprint !== 'empty') {
+      _audioTabsFingerprint = 'empty';
+      section.style.display = 'none';
+    }
     return;
   }
+
+  if (fingerprint === _audioTabsFingerprint) return; // nothing changed — leave DOM alone
+  _audioTabsFingerprint = fingerprint;
 
   section.style.display = '';
   list.innerHTML = '';
@@ -633,13 +650,22 @@ function setupEvents() {
 
   // ── Export / import
   document.getElementById('export-btn').addEventListener('click', async () => {
-    const { domains } = await msg('get-all-domains');
-    const blob = new Blob([JSON.stringify(domains, null, 2)], { type: 'application/json' });
+    const [{ domains }, { settings: savedGlobal }] = await Promise.all([
+      msg('get-all-domains'),
+      msg('get-global-settings'),
+    ]);
+    const exportData = {
+      version:        1,
+      globalSettings: savedGlobal,
+      domains,
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
     const a = Object.assign(document.createElement('a'), {
-      href: URL.createObjectURL(blob), download: 'volumehub-domains.json'
+      href: URL.createObjectURL(blob), download: 'volumehub-settings.json'
     });
     a.click(); URL.revokeObjectURL(a.href);
-    showToast(`Exported ${Object.keys(domains).length} domain${Object.keys(domains).length !== 1 ? 's' : ''}`);
+    const dc = Object.keys(domains).length;
+    showToast(`Exported ${dc} domain${dc !== 1 ? 's' : ''} + global settings`);
   });
 
   document.getElementById('import-btn').addEventListener('click', () =>
@@ -650,11 +676,30 @@ function setupEvents() {
     const file = e.target.files[0];
     if (!file) return;
     try {
-      const imported = JSON.parse(await file.text());
+      const parsed = JSON.parse(await file.text());
+
+      // New format: { version, globalSettings, domains }
+      // Legacy format: flat object of domain → settings (no version key)
+      const isNewFormat   = parsed.version !== undefined;
+      const domains       = isNewFormat ? (parsed.domains       || {}) : parsed;
+      const importedGlobal = isNewFormat ? (parsed.globalSettings || null) : null;
+
+      // Merge domains into existing
       const { domains: existing } = await msg('get-all-domains');
-      await chrome.storage.local.set({ 'domains-settings': { ...existing, ...imported } });
+      await chrome.storage.local.set({ 'domains-settings': { ...existing, ...domains } });
+
+      // Restore global settings if present, then re-apply to UI
+      if (importedGlobal) {
+        globalSettings = { ...globalSettings, ...importedGlobal };
+        await msg('save-global-settings', { settings: globalSettings });
+        applyGlobalSettings();
+      }
+
       renderDomains();
-      showToast(`Imported ${Object.keys(imported).length} domain${Object.keys(imported).length !== 1 ? 's' : ''}`);
+      const dc = Object.keys(domains).length;
+      const parts = [`${dc} domain${dc !== 1 ? 's' : ''}`];
+      if (importedGlobal) parts.push('global settings');
+      showToast(`Imported ${parts.join(' + ')}`);
     } catch (_) { showToast('Invalid JSON file'); }
     e.target.value = '';
   });

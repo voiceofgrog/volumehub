@@ -76,6 +76,10 @@
       <button class="action-btn secondary" id="clear-domain-btn" aria-label="Clear saved volume for this site">Clear saved</button>
     </div>
 
+    <p class="context-tip" aria-label="Volume keyboard shortcuts">
+      Scroll wheel or ↑ ↓ keys · Shift for ×10 steps · Keys 1–6 jump to 100–600%
+    </p>
+
     <section id="audio-tabs-section" class="audio-tabs-section"
              aria-label="Tabs playing audio right now" style="display:none">
       <div class="audio-tabs-header">Tabs playing audio right now</div>
@@ -148,6 +152,10 @@
       </div>
 
     </div>
+
+    <p class="context-tip" aria-label="EQ keyboard shortcuts">
+      Scroll anywhere in a band column · Shift for larger steps · Click and drag for precision
+    </p>
   </div>
 
   <!-- ── Domains tab ───────────────────────────────────────────────────────── -->
@@ -155,11 +163,6 @@
        role="tabpanel" aria-labelledby="tab-btn-domains" tabindex="-1">
     <div class="domains-toolbar">
       <span class="domains-title">Saved Volumes</span>
-      <div class="domains-actions">
-        <button class="action-btn small" id="export-btn" aria-label="Export domain settings as JSON">Export</button>
-        <button class="action-btn small secondary" id="import-btn" aria-label="Import domain settings from JSON file">Import</button>
-        <input type="file" id="import-file" accept=".json" style="display:none" aria-label="Choose JSON file to import">
-      </div>
     </div>
     <div id="domains-list" class="domains-list" role="list" aria-label="Saved domain volumes">
       <div class="empty-state">No saved domains yet.<br>Adjust volume on any site to save it.</div>
@@ -199,19 +202,15 @@
         </div>
       </div>
 
-      <div class="settings-divider" aria-hidden="true"></div>
-
-      <div class="setting-row no-hover">
+      <div class="setting-row">
         <div class="setting-info">
-          <span class="setting-label">Volume shortcuts</span>
-          <span class="setting-desc">Scroll wheel or ↑ ↓ keys · Hold Shift for ×10 steps · Keys 1–6 jump to 100–600%</span>
+          <span class="setting-label">Backup &amp; Restore</span>
+          <span class="setting-desc">Export all settings and saved volumes to a file, or restore from a backup</span>
         </div>
-      </div>
-
-      <div class="setting-row no-hover">
-        <div class="setting-info">
-          <span class="setting-label">EQ shortcuts</span>
-          <span class="setting-desc">Scroll anywhere in a band column · Hold Shift for larger steps · Click and drag for precision</span>
+        <div class="domains-actions">
+          <button class="action-btn small" id="export-btn" aria-label="Export all settings as JSON">Export</button>
+          <button class="action-btn small secondary" id="import-btn" aria-label="Import settings from JSON file">Import</button>
+          <input type="file" id="import-file" accept=".json" style="display:none" aria-label="Choose JSON file to import">
         </div>
       </div>
 

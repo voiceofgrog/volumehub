@@ -2,13 +2,16 @@
   "manifest_version": 3,
   "name": "VolumeHub",
   "version": "1.0.0",
-  "description": "Take control of your browser's audio. Boost volume up to 600%, save per-site settings, fine-tune bass, mid, and treble with a 3-band EQ, and mute any tab instantly.",
+  "description": "Take control of your browser's audio. Boost volume up to 600%, save per-site settings, apply a 3-band EQ, and mute tabs instantly.",
+  "author": "support@voiceofgrog.com",
+  "homepage_url": "https://github.com/voiceofgrog/volumehub",
+  "minimum_chrome_version": "116",
   "icons": {
     "16": "icons/icon-16.png",
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
   },
-  "permissions": ["activeTab", "alarms", "offscreen", "tabCapture", "tabs", "storage"],
+  "permissions": ["alarms", "offscreen", "tabCapture", "tabs", "storage"],
   "host_permissions": ["<all_urls>"],
   "action": {
     "default_popup": "html/popup.html",

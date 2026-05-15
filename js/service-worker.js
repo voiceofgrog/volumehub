@@ -47,8 +47,11 @@ async function toOffscreen(payload) {
 
 // Create the keepalive alarm on install AND on every browser startup, since
 // alarms can be lost if the browser force-terminates the service worker.
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener((details) => {
   chrome.alarms.create('keepAlive', { periodInMinutes: 0.4 }); // ~24 s
+  if (details.reason === 'install') {
+    chrome.tabs.create({ url: chrome.runtime.getURL('html/onboarding.html') });
+  }
 });
 
 chrome.runtime.onStartup.addListener(async () => {
