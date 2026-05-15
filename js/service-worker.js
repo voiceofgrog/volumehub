@@ -7,6 +7,10 @@ const OFFSCREEN_URL = chrome.runtime.getURL('html/offscreen.html');
 // autoConnect skips volume restoration for these so the mute survives tab switches.
 const mutedTabs = new Set();
 
+// Tracks the last known URL per tab so we can distinguish a real navigation
+// (domain changed or page reloaded) from a SPA URL update (same domain, no reload).
+const tabLastUrl = new Map();
+
 // ── Offscreen document lifecycle ──────────────────────────────────────────────
 
 let _creatingOffscreen = null;
@@ -303,14 +307,25 @@ async function autoConnect(tabId, url) {
   } catch (_) { /* tab not capturable, popup already capturing, etc. */ }
 }
 
-// When a tab finishes loading (refresh, navigation), its audio stream restarts.
-// Disconnect the stale context and reconnect for the active tab.
+// When a tab finishes loading, reconnect audio if needed.
+// For SPA navigations (same domain, no true reload), the stream is still alive
+// so we skip the disconnect to avoid a native-volume spike on every URL change.
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status !== 'complete' || !tab.url) return;
 
-  // The old stream is dead after navigation — always tear it down
-  await toOffscreen({ action: 'disconnect', tabId }).catch(() => {});
-  await clearBadge(tabId).catch(() => {});
+  const prevUrl    = tabLastUrl.get(tabId);
+  const prevDomain = prevUrl ? getDomain(prevUrl) : null;
+  const newDomain  = getDomain(tab.url);
+  tabLastUrl.set(tabId, tab.url);
+
+  const isSameDomain = prevDomain && prevDomain === newDomain;
+
+  // Only tear down the audio context on a real navigation (domain changed or first load).
+  // SPA URL changes within the same domain leave the stream intact.
+  if (!isSameDomain) {
+    await toOffscreen({ action: 'disconnect', tabId }).catch(() => {});
+    await clearBadge(tabId).catch(() => {});
+  }
 
   // Only auto-reconnect the currently active tab
   try {
