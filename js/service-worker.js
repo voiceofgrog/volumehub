@@ -100,7 +100,7 @@ async function dispatch(msg) {
     // even if the offscreen audio context is temporarily unavailable.
     case 'set-volume': {
       await setBadge(msg.tabId, msg.volume).catch(() => {});
-      return toOffscreen({ action: 'set-volume', tabId: msg.tabId, volume: msg.volume, fade: msg.fade })
+      return toOffscreen({ action: 'set-volume', tabId: msg.tabId, volume: msg.volume, fade: msg.fade, fadeMs: msg.fadeMs })
         .catch(err => ({ success: false, error: err.message }));
     }
 
@@ -119,7 +119,7 @@ async function dispatch(msg) {
 
     case 'disconnect':
       await clearBadge(msg.tabId).catch(() => {});
-      return toOffscreen({ action: 'disconnect', tabId: msg.tabId }).catch(() => ({ success: true }));
+      return toOffscreen({ action: 'disconnect', tabId: msg.tabId, fadeMs: msg.fadeMs }).catch(() => ({ success: true }));
 
     // ── Storage ──
 
@@ -157,7 +157,7 @@ async function dispatch(msg) {
       const store = await chrome.storage.local.get('global-settings');
       return {
         settings: store['global-settings'] || {
-          darkMode: false, defaultVolume: 100, autoApply: true
+          darkMode: false, defaultVolume: 100, autoApply: true, autoMuteNewTabs: false
         }
       };
     }
@@ -179,14 +179,14 @@ async function dispatch(msg) {
       const captured = await toOffscreen({ action: 'get-captured-tabs' }).catch(() => ({ tabIds: [] }));
       if ((captured.tabIds || []).includes(mutTabId)) {
         if (muted) {
-          await toOffscreen({ action: 'set-volume', tabId: mutTabId, volume: 0, fade: false });
+          await toOffscreen({ action: 'set-volume', tabId: mutTabId, volume: 0, fade: true, fadeMs: 150 });
         } else {
           const store  = await chrome.storage.local.get(['domains-settings', 'global-settings']);
           const tab    = await chrome.tabs.get(mutTabId).catch(() => null);
           const domain = tab ? getDomain(tab.url) : null;
           const volume = (domain && (store['domains-settings'] || {})[domain]?.volume)
                       ?? store['global-settings']?.defaultVolume ?? 100;
-          await toOffscreen({ action: 'set-volume', tabId: mutTabId, volume, fade: false });
+          await toOffscreen({ action: 'set-volume', tabId: mutTabId, volume, fade: true, fadeMs: 150 });
           await setBadge(mutTabId, volume);
         }
       } else {
@@ -204,22 +204,24 @@ async function dispatch(msg) {
         toOffscreen({ action: 'get-captured-tabs' }).catch(() => ({ tabIds: [] })),
         chrome.tabs.query({ audible: true }),
       ]);
-      const capturedIds = new Set(capturedRes.tabIds || []);
+      const capturedIds  = new Set(capturedRes.tabIds || []);
+      const audibleIds   = new Set(audibleTabs.map(t => t.id));
 
-      // Zero the gain on captured tabs (instant, no gap)
-      await Promise.all([...capturedIds].map(tabId =>
-        toOffscreen({ action: 'set-volume', tabId, volume: 0, fade: false }).catch(() => {})
+      // Only mute captured tabs that are currently audible
+      const capturedAudible = [...capturedIds].filter(id => audibleIds.has(id));
+      await Promise.all(capturedAudible.map(tabId =>
+        toOffscreen({ action: 'set-volume', tabId, volume: 0, fade: true, fadeMs: 150 }).catch(() => {})
       ));
 
-      // Native mute on tabs not going through our audio chain
+      // Native mute on audible tabs not going through our audio chain
       const nativeMute = audibleTabs.filter(t => !capturedIds.has(t.id));
       await Promise.all(nativeMute.map(t => chrome.tabs.update(t.id, { muted: true })));
 
-      // Track all muted tabs so get-muted-tabs reflects them correctly
-      for (const tabId of capturedIds) mutedTabs.add(tabId);
+      // Track only audible muted tabs so get-muted-tabs reflects them correctly
+      for (const tabId of capturedAudible) mutedTabs.add(tabId);
       for (const t of nativeMute) mutedTabs.add(t.id);
 
-      return { success: true, count: capturedIds.size + nativeMute.length };
+      return { success: true, count: capturedAudible.length + nativeMute.length };
     }
 
     case 'unmute-all': {
@@ -347,6 +349,47 @@ chrome.tabs.onActivated.addListener(async ({ tabId }) => {
   try {
     const tab = await chrome.tabs.get(tabId);
     if (tab.url) await autoConnect(tabId, tab.url);
+  } catch (_) {}
+});
+
+// Mute newly created tabs if the user has enabled that setting.
+chrome.tabs.onCreated.addListener(async (tab) => {
+  try {
+    const store    = await chrome.storage.local.get('global-settings');
+    const settings = store['global-settings'] || {};
+    if (!settings.autoMuteNewTabs) return;
+    await chrome.tabs.update(tab.id, { muted: true });
+    mutedTabs.add(tab.id);
+  } catch (_) {}
+});
+
+// Keyboard shortcut: toggle mute on the currently active tab.
+chrome.commands.onCommand.addListener(async (command) => {
+  if (command !== 'toggle-mute-tab') return;
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    if (!tab) return;
+    const isMuted = mutedTabs.has(tab.id);
+    if (isMuted) {
+      mutedTabs.delete(tab.id);
+    } else {
+      mutedTabs.add(tab.id);
+    }
+    const captured = await toOffscreen({ action: 'get-captured-tabs' }).catch(() => ({ tabIds: [] }));
+    if ((captured.tabIds || []).includes(tab.id)) {
+      if (!isMuted) {
+        await toOffscreen({ action: 'set-volume', tabId: tab.id, volume: 0, fade: true, fadeMs: 150 });
+      } else {
+        const store  = await chrome.storage.local.get(['domains-settings', 'global-settings']);
+        const domain = getDomain(tab.url);
+        const volume = (domain && (store['domains-settings'] || {})[domain]?.volume)
+                    ?? store['global-settings']?.defaultVolume ?? 100;
+        await toOffscreen({ action: 'set-volume', tabId: tab.id, volume, fade: true, fadeMs: 150 });
+        await setBadge(tab.id, volume);
+      }
+    } else {
+      await chrome.tabs.update(tab.id, { muted: !isMuted }).catch(() => {});
+    }
   } catch (_) {}
 });
 

@@ -12,7 +12,6 @@
     "128": "icons/icon-128.png"
   },
   "permissions": ["alarms", "offscreen", "tabCapture", "tabs", "storage"],
-  "host_permissions": ["<all_urls>"],
   "action": {
     "default_popup": "html/popup.html",
     "default_icon": {
@@ -23,5 +22,14 @@
   },
   "background": {
     "service_worker": "js/service-worker.js"
+  },
+  "commands": {
+    "toggle-mute-tab": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+M",
+        "mac": "Command+Shift+M"
+      },
+      "description": "Mute or unmute the current tab"
+    }
   }
 }

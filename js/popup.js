@@ -6,7 +6,7 @@ let isConnected   = false;
 let currentVolume = 100;
 let analyserTimer  = null;
 let audioTabsTimer = null;
-let globalSettings = { darkMode: false, defaultVolume: 100, autoApply: true };
+let globalSettings = { darkMode: false, defaultVolume: 100, autoApply: true, autoMuteNewTabs: false };
 
 // ── Messaging ─────────────────────────────────────────────────────────────────
 
@@ -495,9 +495,12 @@ async function init() {
   const needsCapture = isTabMuted || applyVol !== 100 || !eqIsFlat;
 
   let connected = false;
-  if (needsCapture) {
-    // Fast-path: reuse existing audio context (no disconnect, no audio gap).
-    // Falls through to full connect only when no context exists yet.
+
+  // Connect whenever the popup opens on a real page — this keeps the visualizer
+  // working at 100%/flat EQ. The capture indicator only shows while the popup is
+  // open; we disconnect on popup close if nothing non-default is active.
+  if (currentDomain) {
+    // Fast-path: reuse an existing audio context if one is already running.
     try {
       const fp = await msg('set-volume', { tabId: currentTabId, volume: applyVol, fade: false });
       if (fp?.success) {
@@ -506,12 +509,13 @@ async function init() {
       }
     } catch (_) {}
 
+    // Full connect if no existing context.
     if (!connected) {
       try {
         const connectRes = await msg('connect', { tabId: currentTabId });
         if (connectRes?.success === false) throw new Error(connectRes.error || 'connect failed');
         connected = true;
-        await msg('set-volume', { tabId: currentTabId, volume: applyVol, fade: false });
+        await msg('set-volume', { tabId: currentTabId, volume: applyVol, fade: true, fadeMs: 80 });
         if (!isTabMuted && savedEQ) await msg('set-eq', { tabId: currentTabId, ...savedEQ });
       } catch (err) {
         console.warn('Audio connect failed:', err.message);
@@ -535,9 +539,10 @@ async function init() {
 
 function applyGlobalSettings() {
   document.body.classList.toggle('dark', !!globalSettings.darkMode);
-  document.getElementById('dark-mode-toggle').checked  = !!globalSettings.darkMode;
-  document.getElementById('auto-apply-toggle').checked = globalSettings.autoApply !== false;
-  document.getElementById('default-volume').value      = globalSettings.defaultVolume ?? 100;
+  document.getElementById('dark-mode-toggle').checked      = !!globalSettings.darkMode;
+  document.getElementById('auto-apply-toggle').checked     = globalSettings.autoApply !== false;
+  document.getElementById('auto-mute-new-tabs').checked    = !!globalSettings.autoMuteNewTabs;
+  document.getElementById('default-volume').value          = globalSettings.defaultVolume ?? 100;
 }
 
 // ── Event wiring ──────────────────────────────────────────────────────────────
@@ -553,7 +558,14 @@ function setupEvents() {
   slider.addEventListener('input', async () => {
     currentVolume = parseFloat(slider.value);
     setSlider(currentVolume);
-    if (await ensureConnected()) await msg('set-volume', { tabId: currentTabId, volume: currentVolume, fade: false });
+    const wasConnected = isConnected;
+    if (await ensureConnected()) {
+      // On first connect, gain starts at 1.0 (native equivalent) and ramps to target
+      // over 80ms — smooths the routing handoff from native to captured audio.
+      // On subsequent changes, 30ms is short enough to feel instant but removes harsh pops.
+      const fadeMs = wasConnected ? 30 : 80;
+      await msg('set-volume', { tabId: currentTabId, volume: currentVolume, fade: true, fadeMs });
+    }
     await saveDomain();
   });
   slider.addEventListener('wheel', e => {
@@ -568,16 +580,7 @@ function setupEvents() {
     currentVolume = 100;
     setSlider(100);
     if (isConnected) {
-      const eq = readEQ();
-      const eqIsFlat = eq.bass === 0 && eq.mid === 0 && eq.treble === 0;
-      if (eqIsFlat) {
-        // Nothing non-default remains — disconnect to clear the tab capture indicator.
-        await msg('disconnect', { tabId: currentTabId });
-        isConnected = false;
-        document.getElementById('analyser-canvas').style.display = 'none';
-      } else {
-        await msg('set-volume', { tabId: currentTabId, volume: 100, fade: false });
-      }
+      await msg('set-volume', { tabId: currentTabId, volume: 100, fade: true, fadeMs: 150 });
     }
     await saveDomain();
   });
@@ -585,6 +588,18 @@ function setupEvents() {
   document.getElementById('clear-domain-btn').addEventListener('click', async () => {
     if (!currentDomain) return;
     await msg('delete-domain-settings', { domain: currentDomain });
+
+    // Reset live volume and EQ to defaults
+    const defaultVol = globalSettings.defaultVolume ?? 100;
+    currentVolume = defaultVol;
+    setSlider(defaultVol);
+    writeEQ(EQ_PRESETS.flat);
+
+    if (isConnected) {
+      await msg('set-volume', { tabId: currentTabId, volume: defaultVol, fade: true, fadeMs: 150 });
+      await msg('set-eq', { tabId: currentTabId, bass: 0, mid: 0, treble: 0 });
+    }
+
     showDomainBadge('new');
     showToast('Cleared saved settings for this site');
   });
@@ -632,8 +647,11 @@ function setupEvents() {
       allMuted = false;
       muteBtn.setAttribute('aria-label', 'Mute all audible tabs');
       muteBtn.classList.remove('active');
-      // Clear all individual mute states so every button resets to unmuted
+      // Explicitly mark all audible tabs as unmuted so renderAudioTabs never
+      // falls back to the (potentially stale) mutedInfo from the browser tab API.
+      const audibleTabs = await chrome.tabs.query({ audible: true }).catch(() => []);
       tabMuteState.clear();
+      for (const tab of audibleTabs) tabMuteState.set(tab.id, false);
       _audioTabsFingerprint = '';
       renderAudioTabs();
     }
@@ -648,6 +666,11 @@ function setupEvents() {
 
   document.getElementById('auto-apply-toggle').addEventListener('change', async e => {
     globalSettings.autoApply = e.target.checked;
+    await msg('save-global-settings', { settings: globalSettings });
+  });
+
+  document.getElementById('auto-mute-new-tabs').addEventListener('change', async e => {
+    globalSettings.autoMuteNewTabs = e.target.checked;
     await msg('save-global-settings', { settings: globalSettings });
   });
 
@@ -742,6 +765,15 @@ function setupEvents() {
 window.addEventListener('unload', () => {
   clearInterval(analyserTimer);
   clearInterval(audioTabsTimer);
+  // If nothing non-default is active, disconnect on popup close so the tab
+  // capture indicator doesn't linger after the popup is gone.
+  if (isConnected && currentVolume === 100) {
+    const eq = readEQ();
+    const eqIsFlat = eq.bass === 0 && eq.mid === 0 && eq.treble === 0;
+    if (eqIsFlat) {
+      chrome.runtime.sendMessage({ action: 'disconnect', tabId: currentTabId }).catch(() => {});
+    }
+  }
 });
 
 init().catch(console.error);

@@ -40,7 +40,7 @@ async function handle(msg) {
       treble.type = 'highshelf'; treble.frequency.value = 8000; treble.gain.value = 0;
 
       const gain = ctx.createGain();
-      gain.gain.value = 1;
+      gain.gain.value = 1; // start at native equivalent — set-volume fades to target
 
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 128;
@@ -69,11 +69,12 @@ async function handle(msg) {
     case 'set-volume': {
       const c = contexts.get(msg.tabId);
       if (!c) return { success: false, error: 'no-context' };
-      const target = msg.volume / 100;
+      const target   = msg.volume / 100;
+      const duration = msg.fadeMs !== undefined ? msg.fadeMs / 1000 : 1.5;
       if (msg.fade) {
         c.gain.gain.cancelScheduledValues(c.ctx.currentTime);
         c.gain.gain.setValueAtTime(c.gain.gain.value, c.ctx.currentTime);
-        c.gain.gain.linearRampToValueAtTime(target, c.ctx.currentTime + 1.5);
+        c.gain.gain.linearRampToValueAtTime(target, c.ctx.currentTime + duration);
       } else {
         c.gain.gain.cancelScheduledValues(c.ctx.currentTime);
         c.gain.gain.value = target;
@@ -101,9 +102,18 @@ async function handle(msg) {
     case 'get-captured-tabs':
       return { tabIds: [...contexts.keys()] };
 
-    case 'disconnect':
+    case 'disconnect': {
+      const cd = contexts.get(msg.tabId);
+      if (cd && msg.fadeMs) {
+        // Fade out before tearing down so the handoff back to native audio is smooth.
+        cd.gain.gain.cancelScheduledValues(cd.ctx.currentTime);
+        cd.gain.gain.setValueAtTime(cd.gain.gain.value, cd.ctx.currentTime);
+        cd.gain.gain.linearRampToValueAtTime(0, cd.ctx.currentTime + msg.fadeMs / 1000);
+        await new Promise(r => setTimeout(r, msg.fadeMs));
+      }
       teardown(msg.tabId);
       return { success: true };
+    }
 
     case 'ping':
       return { alive: true };
