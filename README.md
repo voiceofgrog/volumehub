@@ -1,4 +1,4 @@
-![VolumeHub](docs/assets/volumehub-marquee.jpg)
+﻿![VolumeHub](docs/assets/volumehub-marquee.jpg)
 
 # VolumeHub
 
@@ -28,6 +28,10 @@ Boost any tab up to 600%, fine-tune sound with a 3-band EQ, and let VolumeHub re
 - Export and import all settings as a backup
 
 ## Installation
+
+### Chrome Web Store
+
+[Install VolumeHub from the Chrome Web Store](https://chromewebstore.google.com/detail/volumehub/jdojcahmkfkdameooeogkcgjapofjlgi)
 
 ### From source
 
