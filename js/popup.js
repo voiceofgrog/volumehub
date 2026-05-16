@@ -17,8 +17,11 @@ function msg(action, extra = {}) {
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
 function getDomain(url) {
-  try { return new URL(url).hostname.replace(/^www\./, ''); }
-  catch (_) { return null; }
+  try {
+    const u = new URL(url);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    return u.hostname.replace(/^www\./, '');
+  } catch (_) { return null; }
 }
 
 function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
