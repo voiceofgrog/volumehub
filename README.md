@@ -29,7 +29,8 @@ Boost any tab up to 600%, fine-tune sound with a 3-band EQ, and let VolumeHub re
 - Export and import all settings as a backup
 
 **Keyboard shortcut**
-- `Ctrl+Shift+M` (Mac: `Cmd+Shift+M`) mutes or unmutes the active tab instantly
+- Mute or unmute the active tab instantly with a keyboard shortcut
+- Chrome does not guarantee suggested shortcuts are applied automatically — set yours at `chrome://extensions/shortcuts`
 
 ## Installation
 
