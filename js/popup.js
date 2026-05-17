@@ -4,8 +4,9 @@ let currentTabId  = null;
 let currentDomain = null;
 let isConnected   = false;
 let currentVolume = 100;
-let analyserTimer  = null;
-let audioTabsTimer = null;
+let analyserTimer    = null;
+let audioTabsTimer   = null;
+let _connectingPromise = null; // deduplicates concurrent ensureConnected() calls
 let globalSettings = { darkMode: false, defaultVolume: 100, autoApply: true, autoMuteNewTabs: false };
 
 // ── Messaging ─────────────────────────────────────────────────────────────────
@@ -25,6 +26,17 @@ function getDomain(url) {
 }
 
 function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+
+// Non-linear slider mapping — places 100% (unity gain) at the physical center
+// of the track so the "100%" label and the thumb agree visually.
+//   Positions   0 – 300  ↔  Volume   0 – 100 %  (attenuation half)
+//   Positions 300 – 600  ↔  Volume 100 – 600 %  (amplification half)
+function sliderToVolume(pos) {
+  return pos <= 300 ? pos / 3 : 100 + (pos - 300) * 5 / 3;
+}
+function volumeToSlider(vol) {
+  return vol <= 100 ? vol * 3 : 300 + (vol - 100) * 3 / 5;
+}
 
 function showToast(text) {
   const el = document.querySelector('.toast');
@@ -49,9 +61,10 @@ function getVolumeColor(v) {
 
 function setSlider(value) {
   const v      = clamp(value, 0, 600);
+  const pos    = Math.round(volumeToSlider(v));
   const slider = document.getElementById('volume-slider');
-  slider.value = v;
-  slider.style.setProperty('--pct', `${(v / 600) * 100}%`);
+  slider.value = pos;
+  slider.style.setProperty('--pct', `${(pos / 600) * 100}%`);
   slider.setAttribute('aria-valuetext', `${Math.round(v)} percent`);
   document.getElementById('volume-value').textContent = Math.round(v);
   document.querySelector('.volume-display').style.color = getVolumeColor(v);
@@ -206,18 +219,35 @@ async function applyEQ() {
 }
 
 // Reconnect the audio pipeline on demand — called when the user makes an
-// adjustment after a disconnect (e.g. after "Reset to 100%" cleared the capture).
+// adjustment and no context is live yet (e.g. first interaction at 100%/flat,
+// or after Reset / Clear Saved disconnected the pipeline).
+//
+// _connectingPromise deduplicates rapid concurrent calls (e.g. fast slider
+// drags fire many input events before the first connect completes). Without
+// it every event would send its own 'connect' message; the service worker
+// tears down the previous context on each connect, producing repeated gaps.
 async function ensureConnected() {
   if (isConnected) return true;
-  try {
-    const connectRes = await msg('connect', { tabId: currentTabId });
-    if (connectRes?.success === false) return false;
-    isConnected = true;
-    document.getElementById('analyser-canvas').style.display = 'block';
-    return true;
-  } catch (_) {
-    return false;
-  }
+  if (_connectingPromise) return _connectingPromise;
+
+  _connectingPromise = (async () => {
+    try {
+      const connectRes = await msg('connect', { tabId: currentTabId });
+      if (connectRes?.success === false) return false;
+      isConnected = true;
+      document.getElementById('analyser-canvas').style.display = 'block';
+      // Start the visualiser polling now that we have a live context.
+      // (init() only calls startAnalyser() when already connected at open time.)
+      if (!analyserTimer) startAnalyser();
+      return true;
+    } catch (_) {
+      return false;
+    } finally {
+      _connectingPromise = null;
+    }
+  })();
+
+  return _connectingPromise;
 }
 
 // ── Storage ───────────────────────────────────────────────────────────────────
@@ -290,6 +320,7 @@ async function renderDomains() {
 // ── Analyser visualiser ───────────────────────────────────────────────────────
 
 function startAnalyser() {
+  if (analyserTimer) return; // already running
   const canvas = document.getElementById('analyser-canvas');
   const ctx    = canvas.getContext('2d');
 
@@ -492,17 +523,15 @@ async function init() {
   const applyVol = isTabMuted ? 0 : startVol;
 
   // Only capture when there's something non-default to apply. Skipping capture
-  // when volume=100 and EQ is flat prevents the tab capture indicator appearing
-  // on popup open when no adjustments have been made (or after "Reset to 100%").
+  // at 100%/flat EQ prevents the tab indicator from appearing and avoids the
+  // brief audio interruption that tabCapture setup causes on every connect.
+  // The visualizer and indicator appear the moment the user makes an adjustment.
   const eqIsFlat = !savedEQ || (savedEQ.bass === 0 && savedEQ.mid === 0 && savedEQ.treble === 0);
   const needsCapture = isTabMuted || applyVol !== 100 || !eqIsFlat;
 
   let connected = false;
 
-  // Connect whenever the popup opens on a real page — this keeps the visualizer
-  // working at 100%/flat EQ. The capture indicator only shows while the popup is
-  // open; we disconnect on popup close if nothing non-default is active.
-  if (currentDomain) {
+  if (currentDomain && needsCapture) {
     // Fast-path: reuse an existing audio context if one is already running.
     try {
       const fp = await msg('set-volume', { tabId: currentTabId, volume: applyVol, fade: false });
@@ -528,9 +557,10 @@ async function init() {
   }
 
   isConnected = connected;
+  const canvas = document.getElementById('analyser-canvas');
+  canvas.style.display = connected ? 'block' : 'none';
   if (connected) {
     showDomainBadge(saved ? 'saved' : 'new');
-    document.getElementById('analyser-canvas').style.display = 'block';
   }
 
   setupEvents();
@@ -559,7 +589,7 @@ function setupEvents() {
   // ── Volume slider
   const slider = document.getElementById('volume-slider');
   slider.addEventListener('input', async () => {
-    currentVolume = parseFloat(slider.value);
+    currentVolume = sliderToVolume(parseFloat(slider.value));
     setSlider(currentVolume);
     const wasConnected = isConnected;
     if (await ensureConnected()) {
@@ -573,8 +603,9 @@ function setupEvents() {
   });
   slider.addEventListener('wheel', e => {
     e.preventDefault();
-    const step = e.shiftKey ? 10 : 1;
-    slider.value = clamp(parseFloat(slider.value) + (e.deltaY < 0 ? step : -step), 0, 600);
+    const step   = e.shiftKey ? 10 : 1;
+    const newVol = clamp(currentVolume + (e.deltaY < 0 ? step : -step), 0, 600);
+    slider.value = Math.round(volumeToSlider(newVol));
     slider.dispatchEvent(new Event('input'));
   }, { passive: false });
 
@@ -583,7 +614,22 @@ function setupEvents() {
     currentVolume = 100;
     setSlider(100);
     if (isConnected) {
-      await msg('set-volume', { tabId: currentTabId, volume: 100, fade: true, fadeMs: 150 });
+      const fadeMs = 150;
+      await msg('set-volume', { tabId: currentTabId, volume: 100, fade: true, fadeMs });
+      // After resetting volume, disconnect only when EQ is also flat — at that
+      // point gain is at 1.0 (native equivalent) so the handoff is seamless.
+      const eq = readEQ();
+      const eqIsFlat = eq.bass === 0 && eq.mid === 0 && eq.treble === 0;
+      if (eqIsFlat) {
+        // Wait for the Web Audio ramp to finish before tearing down.
+        await new Promise(r => setTimeout(r, fadeMs));
+        // Guard: user may have moved the slider during the wait.
+        if (isConnected && currentVolume === 100) {
+          await msg('disconnect', { tabId: currentTabId });
+          isConnected = false;
+          document.getElementById('analyser-canvas').style.display = 'none';
+        }
+      }
     }
     await saveDomain();
   });
@@ -599,8 +645,19 @@ function setupEvents() {
     writeEQ(EQ_PRESETS.flat);
 
     if (isConnected) {
-      await msg('set-volume', { tabId: currentTabId, volume: defaultVol, fade: true, fadeMs: 150 });
+      const fadeMs = 150;
+      await msg('set-volume', { tabId: currentTabId, volume: defaultVol, fade: true, fadeMs });
       await msg('set-eq', { tabId: currentTabId, bass: 0, mid: 0, treble: 0 });
+      // Clear saved always returns to flat EQ. Disconnect after the fade if
+      // volume is also at native (100%) so the capture indicator disappears.
+      if (defaultVol === 100) {
+        await new Promise(r => setTimeout(r, fadeMs));
+        if (isConnected) {
+          await msg('disconnect', { tabId: currentTabId });
+          isConnected = false;
+          document.getElementById('analyser-canvas').style.display = 'none';
+        }
+      }
     }
 
     showDomainBadge('new');
@@ -747,18 +804,18 @@ function setupEvents() {
     const step   = e.shiftKey ? 10 : 1;
     switch (e.key) {
       case 'ArrowUp': case 'ArrowRight':
-        slider.value = clamp(parseFloat(slider.value) + step, 0, 600);
+        slider.value = Math.round(volumeToSlider(clamp(currentVolume + step, 0, 600)));
         slider.dispatchEvent(new Event('input')); e.preventDefault(); break;
       case 'ArrowDown': case 'ArrowLeft':
-        slider.value = clamp(parseFloat(slider.value) - step, 0, 600);
+        slider.value = Math.round(volumeToSlider(clamp(currentVolume - step, 0, 600)));
         slider.dispatchEvent(new Event('input')); e.preventDefault(); break;
-      case '0': slider.value = 0;   slider.dispatchEvent(new Event('input')); break;
-      case '1': slider.value = 100; slider.dispatchEvent(new Event('input')); break;
-      case '2': slider.value = 200; slider.dispatchEvent(new Event('input')); break;
-      case '3': slider.value = 300; slider.dispatchEvent(new Event('input')); break;
-      case '4': slider.value = 400; slider.dispatchEvent(new Event('input')); break;
-      case '5': slider.value = 500; slider.dispatchEvent(new Event('input')); break;
-      case '6': slider.value = 600; slider.dispatchEvent(new Event('input')); break;
+      case '0': slider.value = volumeToSlider(0);   slider.dispatchEvent(new Event('input')); break;
+      case '1': slider.value = volumeToSlider(100); slider.dispatchEvent(new Event('input')); break;
+      case '2': slider.value = volumeToSlider(200); slider.dispatchEvent(new Event('input')); break;
+      case '3': slider.value = volumeToSlider(300); slider.dispatchEvent(new Event('input')); break;
+      case '4': slider.value = volumeToSlider(400); slider.dispatchEvent(new Event('input')); break;
+      case '5': slider.value = volumeToSlider(500); slider.dispatchEvent(new Event('input')); break;
+      case '6': slider.value = volumeToSlider(600); slider.dispatchEvent(new Event('input')); break;
     }
   });
 }
@@ -768,15 +825,6 @@ function setupEvents() {
 window.addEventListener('unload', () => {
   clearInterval(analyserTimer);
   clearInterval(audioTabsTimer);
-  // If nothing non-default is active, disconnect on popup close so the tab
-  // capture indicator doesn't linger after the popup is gone.
-  if (isConnected && currentVolume === 100) {
-    const eq = readEQ();
-    const eqIsFlat = eq.bass === 0 && eq.mid === 0 && eq.treble === 0;
-    if (eqIsFlat) {
-      chrome.runtime.sendMessage({ action: 'disconnect', tabId: currentTabId }).catch(() => {});
-    }
-  }
 });
 
 init().catch(console.error);
