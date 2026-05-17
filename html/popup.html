@@ -219,9 +219,14 @@
       </div>
 
       <div class="saved-sites-section">
-        <div class="setting-info">
-          <span class="setting-label" id="saved-sites-heading" aria-live="polite">Saved sites</span>
-          <span class="setting-desc">Sites with custom volume or EQ settings</span>
+        <div class="saved-sites-header">
+          <div class="setting-info">
+            <span class="setting-label" id="saved-sites-heading" aria-live="polite">Saved sites</span>
+            <span class="setting-desc">Sites with custom volume or EQ settings</span>
+          </div>
+          <div class="domains-actions">
+            <button class="action-btn small secondary" id="delete-all-sites-btn" aria-label="Delete all saved site settings" style="display:none">Delete All</button>
+          </div>
         </div>
         <div id="saved-sites-list" class="saved-sites-list" role="list" aria-label="Saved site settings"></div>
       </div>

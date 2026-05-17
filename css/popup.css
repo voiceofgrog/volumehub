@@ -470,6 +470,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
 
 /* Small variant — Export / Import */
 .action-btn.small { flex: none; padding: 6px 16px; font-size: 12px; }
+.action-btn.armed { color: var(--md-error); border-color: var(--md-error); background: var(--md-error-container); }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Analyser canvas
@@ -636,7 +637,12 @@ input[type="range"]::-webkit-slider-thumb:hover {
   padding: 12px 10px 8px;
 }
 
-.saved-sites-section .setting-info { margin-bottom: 8px; }
+.saved-sites-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
 
 .saved-sites-list {
   display: flex;

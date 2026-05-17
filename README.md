@@ -13,7 +13,7 @@ Boost any tab up to 600%, fine-tune sound with a 3-band EQ, and let VolumeHub re
 - Live audio visualizer
 
 **EQ**
-- 3-band equalizer — bass, mid, and treble
+- 3-band equalizer: bass, mid, and treble
 - ±12 dB range per band
 - One-click presets: Flat, Bass Boost, Vocal, Night Mode
 
@@ -22,12 +22,12 @@ Boost any tab up to 600%, fine-tune sound with a 3-band EQ, and let VolumeHub re
 - Set a default volume for new sites
 - Auto-apply saved levels when you open the popup
 - Auto-mute every new tab as it opens
-- View and remove sites with saved settings
+- View, remove, or bulk-delete sites with saved settings
 - Export and import all settings as a backup
 
 **Keyboard shortcut**
 - Mute or unmute the active tab instantly with a keyboard shortcut
-- Chrome does not guarantee suggested shortcuts are applied automatically — set yours at `chrome://extensions/shortcuts`
+- Chrome does not guarantee suggested shortcuts are applied automatically. Set yours at `chrome://extensions/shortcuts`
 
 ## Installation
 
@@ -41,6 +41,12 @@ Boost any tab up to 600%, fine-tune sound with a 3-band EQ, and let VolumeHub re
 2. Open Chrome and go to `chrome://extensions`
 3. Enable **Developer mode** (top right)
 4. Click **Load unpacked** and select the repo folder
+
+## Notes
+
+**Fullscreen on streaming sites:** Some streaming services (Amazon Prime Video, Disney+, Peacock) block the in-player fullscreen button when a browser extension is controlling audio. This is a browser-level restriction, not a bug. Pressing F11 works normally as an alternative.
+
+**Auto-mute new tabs:** When enabled in Settings, every new tab is silenced the moment it opens. Individual tabs can be unmuted anytime from the popup's audio tabs list.
 
 ## Privacy
 

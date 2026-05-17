@@ -274,6 +274,9 @@ async function renderSavedSites() {
 
   updateHeading(entries.length);
 
+  const deleteAllBtn = document.getElementById('delete-all-sites-btn');
+  deleteAllBtn.style.display = entries.length ? '' : 'none';
+
   if (!entries.length) {
     list.innerHTML = '<div class="empty-state" style="padding:12px 0;font-size:13px;">No saved sites yet.</div>';
     return;
@@ -299,6 +302,7 @@ async function renderSavedSites() {
       item.remove();
       const remaining = list.querySelectorAll('.saved-site-item').length;
       updateHeading(remaining);
+      deleteAllBtn.style.display = remaining ? '' : 'none';
       if (!remaining)
         list.innerHTML = '<div class="empty-state" style="padding:12px 0;font-size:13px;">No saved sites yet.</div>';
     });
@@ -790,13 +794,38 @@ function setupEvents() {
         applyGlobalSettings();
       }
 
-      renderDomains();
+      renderSavedSites();
       const dc = Object.keys(domains).length;
       const parts = [`${dc} domain${dc !== 1 ? 's' : ''}`];
       if (importedGlobal) parts.push('global settings');
       showToast(`Imported ${parts.join(' + ')}`);
     } catch (_) { showToast('Invalid JSON file'); }
     e.target.value = '';
+  });
+
+  // ── Delete all saved sites
+  let _deleteAllArmed = false;
+  let _deleteAllTimer = null;
+  document.getElementById('delete-all-sites-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('delete-all-sites-btn');
+    if (!_deleteAllArmed) {
+      _deleteAllArmed = true;
+      btn.textContent = 'Confirm?';
+      btn.classList.add('armed');
+      _deleteAllTimer = setTimeout(() => {
+        _deleteAllArmed = false;
+        btn.textContent = 'Delete All';
+        btn.classList.remove('armed');
+      }, 3000);
+      return;
+    }
+    clearTimeout(_deleteAllTimer);
+    _deleteAllArmed = false;
+    btn.textContent = 'Delete All';
+    btn.classList.remove('armed');
+    await chrome.storage.local.set({ 'domains-settings': {} });
+    showToast('All saved site data cleared');
+    renderSavedSites();
   });
 
   // ── Keyboard shortcuts (when focus is not inside an input/select)
