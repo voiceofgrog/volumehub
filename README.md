@@ -25,7 +25,11 @@ Boost any tab up to 600%, fine-tune sound with a 3-band EQ, and let VolumeHub re
 - Dark and light mode
 - Set a default volume for new sites
 - Auto-apply saved levels when you open the popup
+- Auto-mute every new tab as it opens
 - Export and import all settings as a backup
+
+**Keyboard shortcut**
+- `Ctrl+Shift+M` (Mac: `Cmd+Shift+M`) mutes or unmutes the active tab instantly
 
 ## Installation
 

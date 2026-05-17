@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "VolumeHub",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Take control of your browser's audio. Boost volume up to 600%, save per-site settings, apply a 3-band EQ, and mute tabs instantly.",
   "author": "support@voiceofgrog.com",
   "homepage_url": "https://github.com/voiceofgrog/volumehub",
