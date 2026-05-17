@@ -145,6 +145,7 @@ async function dispatch(msg) {
       return { success: true };
     }
 
+
     case 'get-muted-tabs':
       return { tabIds: [...mutedTabs] };
 

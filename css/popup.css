@@ -186,17 +186,41 @@ header {
   gap: 2px;
 }
 
-/* Label Small */
-.mute-feedback {
-  font-size: 11px;
-  letter-spacing: .5px;
+/* Mute All / Unmute All pill button */
+.mute-all-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 12px 0 8px;
+  height: 36px;
+  border: none;
+  border-radius: var(--shape-full);
+  background: transparent;
   color: var(--md-on-surface-variant);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: .1px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: color .2s;
   white-space: nowrap;
-  opacity: 0;
-  transition: opacity .2s;
-  pointer-events: none;
 }
-.mute-feedback.show { opacity: 1; }
+.mute-all-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.mute-all-btn:hover::before  { opacity: .08; }
+.mute-all-btn:active::before { opacity: .12; }
+.mute-all-btn.active {
+  background: var(--md-error-container);
+  color: var(--md-on-error-container);
+}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Navigation — Secondary Tabs
@@ -606,29 +630,39 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Domains tab
+   Saved sites — Settings section
    ═══════════════════════════════════════════════════════════════════════════ */
-.domains-toolbar {
+.saved-sites-section {
+  padding: 12px 10px 8px;
+}
+
+.saved-sites-section .setting-info { margin-bottom: 8px; }
+
+.saved-sites-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.saved-site-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  padding: 4px 2px;
+  border-bottom: 1px solid var(--md-outline-variant);
 }
-/* Title Medium */
-.domains-title {
-  font-size: 16px;
-  font-weight: 500;
-  letter-spacing: .15px;
-  color: var(--md-on-surface);
-}
-.domains-actions { display: flex; gap: 8px; }
+.saved-site-item:last-child { border-bottom: none; }
 
-.domains-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  max-height: 240px;
-  overflow-y: auto;
+/* Body Small */
+.saved-site-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--md-on-surface);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Body Medium */
@@ -640,84 +674,10 @@ input[type="range"]::-webkit-slider-thumb:hover {
   line-height: 1.8;
 }
 
-/* M3 Outlined Card */
-.domain-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--md-surface-container-low);
-  border-radius: var(--shape-md);
-  border: 1px solid var(--md-outline-variant);
-  transition: background .15s, border-color .15s;
-}
-.domain-item:hover {
-  background: var(--md-surface-container);
-  border-color: var(--md-primary);
-}
-
-.domain-info      { flex: 1; min-width: 0; }
-/* Body Medium */
-.domain-item-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--md-on-surface);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.domain-item-actions { display: flex; align-items: center; gap: 6px; }
-
-/* M3 Outlined Text Field (compact) */
-.volume-edit {
-  width: 56px;
-  padding: 6px 8px;
-  border: 1px solid var(--md-outline);
-  border-radius: var(--shape-xs);
-  background: var(--md-surface);
-  color: var(--md-on-surface);
-  font-size: 13px;
-  text-align: center;
-  transition: border-color .15s, box-shadow .15s;
-}
-.volume-edit:focus {
-  border-color: var(--md-primary);
-  outline: none;
-  box-shadow: 0 0 0 2px var(--md-primary-container);
-}
-
-/* M3 Filled Button (small) */
-.save-btn {
-  padding: 6px 14px;
-  border: none;
-  border-radius: var(--shape-full);
-  background: var(--md-primary);
-  color: var(--md-on-primary);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: .1px;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  transition: box-shadow .15s;
-}
-.save-btn::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: currentColor;
-  opacity: 0;
-  transition: opacity .15s;
-}
-.save-btn:hover { box-shadow: 0 1px 3px rgba(0,0,0,.2); }
-.save-btn:hover::before { opacity: .08; }
-
 /* M3 Icon Button (destructive) */
 .delete-btn {
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
   border: none;
   border-radius: var(--shape-full);
   background: transparent;
@@ -858,6 +818,22 @@ input[type="range"]::-webkit-slider-thumb:hover {
   width: 24px;
   height: 24px;
   background: var(--md-on-primary);
+}
+
+/* Default volume setting row — column layout to accommodate slider */
+.default-vol-row {
+  flex-direction: column;
+  align-items: stretch;
+  cursor: default;
+  gap: 6px;
+  min-height: unset;
+}
+.default-vol-row::before { display: none; }
+.setting-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .number-input-wrap {

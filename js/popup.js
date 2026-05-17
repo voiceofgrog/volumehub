@@ -260,59 +260,50 @@ async function saveDomain() {
   });
 }
 
-// ── Domains tab ───────────────────────────────────────────────────────────────
+// ── Saved sites (Settings tab) ────────────────────────────────────────────────
 
-async function renderDomains() {
+async function renderSavedSites() {
   const { domains } = await msg('get-all-domains');
-  const list    = document.getElementById('domains-list');
-  const entries = Object.entries(domains).sort(([a], [b]) => a.localeCompare(b));
+  const entries  = Object.entries(domains).sort(([a], [b]) => a.localeCompare(b));
+  const heading  = document.getElementById('saved-sites-heading');
+  const list     = document.getElementById('saved-sites-list');
+
+  function updateHeading(n) {
+    heading.textContent = n ? `${n} saved site${n !== 1 ? 's' : ''}` : 'Saved sites';
+  }
+
+  updateHeading(entries.length);
 
   if (!entries.length) {
-    list.innerHTML = '<div class="empty-state">No saved domains yet.<br>Adjust volume on any site to save it.</div>';
+    list.innerHTML = '<div class="empty-state" style="padding:12px 0;font-size:13px;">No saved sites yet.</div>';
     return;
   }
 
   list.innerHTML = '';
-  for (const [domain, settings] of entries) {
+  for (const [domain] of entries) {
     const item = document.createElement('div');
-    item.className = 'domain-item';
+    item.className = 'saved-site-item';
     item.setAttribute('role', 'listitem');
 
-    const info = document.createElement('div');
-    info.className = 'domain-info';
-    info.innerHTML = `<div class="domain-item-name">${domain}</div>`;
-
-    const volIn = document.createElement('input');
-    volIn.type = 'number'; volIn.className = 'volume-edit';
-    volIn.min = 0; volIn.max = 600; volIn.value = Math.round(settings.volume);
-    volIn.setAttribute('aria-label', `Volume for ${domain}`);
-
-    const saveBtn = document.createElement('button');
-    saveBtn.className = 'save-btn';
-    saveBtn.textContent = 'Save';
-    saveBtn.setAttribute('aria-label', `Save volume for ${domain}`);
-    saveBtn.addEventListener('click', async () => {
-      const v = clamp(parseInt(volIn.value) || 100, 0, 600);
-      volIn.value = v;
-      await msg('save-domain-settings', { domain, settings: { ...settings, volume: v } });
-      item.querySelector('.domain-item-vol').textContent = `${v}%`;
-      showToast(`Saved ${domain} → ${v}%`);
-    });
+    const name = document.createElement('span');
+    name.className = 'saved-site-name';
+    name.textContent = domain;
 
     const delBtn = document.createElement('button');
-    delBtn.className = 'delete-btn'; delBtn.title = 'Remove'; delBtn.textContent = '✕';
-    delBtn.setAttribute('aria-label', `Remove saved volume for ${domain}`);
+    delBtn.className = 'delete-btn';
+    delBtn.title = 'Remove';
+    delBtn.textContent = '✕';
+    delBtn.setAttribute('aria-label', `Remove saved settings for ${domain}`);
     delBtn.addEventListener('click', async () => {
       await msg('delete-domain-settings', { domain });
       item.remove();
-      if (!list.children.length)
-        list.innerHTML = '<div class="empty-state">No saved domains yet.<br>Adjust volume on any site to save it.</div>';
+      const remaining = list.querySelectorAll('.saved-site-item').length;
+      updateHeading(remaining);
+      if (!remaining)
+        list.innerHTML = '<div class="empty-state" style="padding:12px 0;font-size:13px;">No saved sites yet.</div>';
     });
 
-    const actions = document.createElement('div');
-    actions.className = 'domain-item-actions';
-    actions.append(volIn, saveBtn, delBtn);
-    item.append(info, actions);
+    item.append(name, delBtn);
     list.appendChild(item);
   }
 }
@@ -483,7 +474,7 @@ function switchTab(targetTab) {
     panel.classList.toggle('active', active);
     panel.tabIndex = active ? 0 : -1;
   });
-  if (targetTab === 'domains') renderDomains();
+  if (targetTab === 'settings') renderSavedSites();
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
@@ -565,7 +556,7 @@ async function init() {
 
   setupEvents();
   if (isConnected) startAnalyser();
-  renderDomains();
+  renderSavedSites();
   renderAudioTabs();
   audioTabsTimer = setInterval(renderAudioTabs, 2000);
 }
@@ -575,7 +566,13 @@ function applyGlobalSettings() {
   document.getElementById('dark-mode-toggle').checked      = !!globalSettings.darkMode;
   document.getElementById('auto-apply-toggle').checked     = globalSettings.autoApply !== false;
   document.getElementById('auto-mute-new-tabs').checked    = !!globalSettings.autoMuteNewTabs;
-  document.getElementById('default-volume').value          = globalSettings.defaultVolume ?? 100;
+  const defVol = globalSettings.defaultVolume ?? 100;
+  document.getElementById('default-volume').value = defVol;
+  const defSlider = document.getElementById('default-volume-slider');
+  const defPos = Math.round(volumeToSlider(defVol));
+  defSlider.value = defPos;
+  defSlider.style.setProperty('--pct', `${(defPos / 600) * 100}%`);
+  defSlider.setAttribute('aria-valuetext', `${defVol} percent`);
 }
 
 // ── Event wiring ──────────────────────────────────────────────────────────────
@@ -677,38 +674,27 @@ function setupEvents() {
 
   // ── Mute-all toggle
   let allMuted = false;
-  const muteBtn      = document.getElementById('mute-all-btn');
-  const muteFeedback = document.getElementById('mute-feedback');
-  let muteFeedbackTimer = null;
-
-  function showMuteFeedback(text) {
-    muteFeedback.textContent = text;
-    muteFeedback.classList.add('show');
-    clearTimeout(muteFeedbackTimer);
-    muteFeedbackTimer = setTimeout(() => muteFeedback.classList.remove('show'), 2200);
-  }
+  const muteBtn   = document.getElementById('mute-all-btn');
+  const muteLabel = document.getElementById('mute-all-label');
 
   muteBtn.addEventListener('click', async () => {
     if (!allMuted) {
       const res   = await msg('mute-all');
       const count = res.count ?? 0;
-      showMuteFeedback(count ? `Muted ${count} tab${count > 1 ? 's' : ''}` : 'No audible tabs');
+      showToast(count ? `Muted ${count} tab${count > 1 ? 's' : ''}` : 'No audible tabs');
       allMuted = true;
-      muteBtn.setAttribute('aria-label', 'Unmute all tabs');
+      muteLabel.textContent = 'Unmute All';
       muteBtn.classList.add('active');
-      // Sync individual tab buttons to show muted state
       const audibleTabs = await chrome.tabs.query({ audible: true }).catch(() => []);
       for (const tab of audibleTabs) tabMuteState.set(tab.id, true);
       _audioTabsFingerprint = '';
       renderAudioTabs();
     } else {
       await msg('unmute-all');
-      showMuteFeedback('Unmuted all');
+      showToast('Unmuted all');
       allMuted = false;
-      muteBtn.setAttribute('aria-label', 'Mute all audible tabs');
+      muteLabel.textContent = 'Mute All';
       muteBtn.classList.remove('active');
-      // Explicitly mark all audible tabs as unmuted so renderAudioTabs never
-      // falls back to the (potentially stale) mutedInfo from the browser tab API.
       const audibleTabs = await chrome.tabs.query({ audible: true }).catch(() => []);
       tabMuteState.clear();
       for (const tab of audibleTabs) tabMuteState.set(tab.id, false);
@@ -734,9 +720,26 @@ function setupEvents() {
     await msg('save-global-settings', { settings: globalSettings });
   });
 
-  document.getElementById('default-volume').addEventListener('change', async e => {
-    globalSettings.defaultVolume = clamp(parseInt(e.target.value) || 100, 0, 600);
-    e.target.value = globalSettings.defaultVolume;
+  const defVolNum    = document.getElementById('default-volume');
+  const defVolSlider = document.getElementById('default-volume-slider');
+
+  defVolSlider.addEventListener('input', async () => {
+    const vol = Math.round(sliderToVolume(parseFloat(defVolSlider.value)));
+    defVolSlider.style.setProperty('--pct', `${(parseFloat(defVolSlider.value) / 600) * 100}%`);
+    defVolSlider.setAttribute('aria-valuetext', `${vol} percent`);
+    defVolNum.value = vol;
+    globalSettings.defaultVolume = vol;
+    await msg('save-global-settings', { settings: globalSettings });
+  });
+
+  defVolNum.addEventListener('change', async e => {
+    const vol = clamp(parseInt(e.target.value) || 0, 0, 600);
+    e.target.value = vol;
+    const pos = Math.round(volumeToSlider(vol));
+    defVolSlider.value = pos;
+    defVolSlider.style.setProperty('--pct', `${(pos / 600) * 100}%`);
+    defVolSlider.setAttribute('aria-valuetext', `${vol} percent`);
+    globalSettings.defaultVolume = vol;
     await msg('save-global-settings', { settings: globalSettings });
   });
 
