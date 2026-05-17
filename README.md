@@ -17,15 +17,12 @@ Boost any tab up to 600%, fine-tune sound with a 3-band EQ, and let VolumeHub re
 - ±12 dB range per band
 - One-click presets: Flat, Bass Boost, Vocal, Night Mode
 
-**Domains**
-- Every saved site volume in one place
-- Remove individual sites or clear all at once
-
 **Settings**
 - Dark and light mode
 - Set a default volume for new sites
 - Auto-apply saved levels when you open the popup
 - Auto-mute every new tab as it opens
+- View and remove sites with saved settings
 - Export and import all settings as a backup
 
 **Keyboard shortcut**
