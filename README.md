@@ -1,4 +1,4 @@
-﻿![VolumeHub](docs/assets/volumehub-marquee.jpg)
+﻿![VolumeHub](docs/assets/volumehub-marquee.png)
 
 # VolumeHub
 
